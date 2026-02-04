@@ -29,6 +29,14 @@ if args.count >= 2 {
                 return try AddFileHandler.handle(params)
             case "remove_file":
                 return try RemoveFileHandler.handle(params)
+            case "move_file":
+                return try MoveFileHandler.handle(params)
+            case "remove_group":
+                return try RemoveGroupHandler.handle(params)
+            case "rename_group":
+                return try RenameGroupHandler.handle(params)
+            case "move_group":
+                return try MoveGroupHandler.handle(params)
             default:
                 return .init(content: [.text("Unknown tool: \(params.name)")], isError: true)
             }

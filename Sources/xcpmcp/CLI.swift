@@ -100,6 +100,109 @@ enum CLI {
             let params = CallTool.Parameters(name: "remove_file", arguments: arguments)
             try printResult(RemoveFileHandler.handle(params))
 
+        case "move-file":
+            let parsed = parseArgs(Array(args.dropFirst()), positional: ["project_path", "file_path"], flags: ["--to-group"])
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let filePath = parsed.positional["file_path"] else {
+                printError("Missing file path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let toGroup = parsed.flags["--to-group"] else {
+                printError("Missing --to-group")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            let moveFileParams = CallTool.Parameters(
+                name: "move_file",
+                arguments: [
+                    "project_path": .string(projectPath),
+                    "file_path": .string(filePath),
+                    "to_group": .string(toGroup),
+                ]
+            )
+            try printResult(MoveFileHandler.handle(moveFileParams))
+
+        case "remove-group":
+            let parsed = parseArgs(Array(args.dropFirst()), positional: ["project_path", "group"], flags: [], boolFlags: ["--recursive"])
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let group = parsed.positional["group"] else {
+                printError("Missing group path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            var removeGroupArgs: [String: Value] = [
+                "project_path": .string(projectPath),
+                "group": .string(group),
+            ]
+            if parsed.boolFlags.contains("--recursive") {
+                removeGroupArgs["recursive"] = .bool(true)
+            }
+            let removeGroupParams = CallTool.Parameters(name: "remove_group", arguments: removeGroupArgs)
+            try printResult(RemoveGroupHandler.handle(removeGroupParams))
+
+        case "rename-group":
+            let parsed = parseArgs(Array(args.dropFirst()), positional: ["project_path", "group"], flags: ["--new-name"])
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let group = parsed.positional["group"] else {
+                printError("Missing group path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let newName = parsed.flags["--new-name"] else {
+                printError("Missing --new-name")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            let renameGroupParams = CallTool.Parameters(
+                name: "rename_group",
+                arguments: [
+                    "project_path": .string(projectPath),
+                    "group": .string(group),
+                    "new_name": .string(newName),
+                ]
+            )
+            try printResult(RenameGroupHandler.handle(renameGroupParams))
+
+        case "move-group":
+            let parsed = parseArgs(Array(args.dropFirst()), positional: ["project_path", "group"], flags: ["--to-group"])
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let group = parsed.positional["group"] else {
+                printError("Missing group path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let toGroup = parsed.flags["--to-group"] else {
+                printError("Missing --to-group")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            let moveGroupParams = CallTool.Parameters(
+                name: "move_group",
+                arguments: [
+                    "project_path": .string(projectPath),
+                    "group": .string(group),
+                    "to_group": .string(toGroup),
+                ]
+            )
+            try printResult(MoveGroupHandler.handle(moveGroupParams))
+
         case "help", "--help", "-h":
             printUsage()
 
@@ -141,6 +244,10 @@ enum CLI {
               xcpmcp list-groups <project.xcodeproj>
               xcpmcp add-file <project.xcodeproj> <file> --target <name> [--group <path>] [--type source|resource]
               xcpmcp remove-file <project.xcodeproj> <file> [--target <name>]
+              xcpmcp move-file <project.xcodeproj> <file> --to-group <path>
+              xcpmcp remove-group <project.xcodeproj> <group> [--recursive]
+              xcpmcp rename-group <project.xcodeproj> <group> --new-name <name>
+              xcpmcp move-group <project.xcodeproj> <group> --to-group <path>
               xcpmcp help
 
             When run with no arguments, starts as an MCP server (for use with Claude Code).
@@ -151,9 +258,10 @@ enum CLI {
     struct ParsedArgs {
         var positional: [String: String] = [:]
         var flags: [String: String] = [:]
+        var boolFlags: Set<String> = []
     }
 
-    private static func parseArgs(_ args: [String], positional positionalNames: [String], flags flagNames: [String]) -> ParsedArgs {
+    private static func parseArgs(_ args: [String], positional positionalNames: [String], flags flagNames: [String], boolFlags boolFlagNames: [String] = []) -> ParsedArgs {
         var result = ParsedArgs()
         var positionalIndex = 0
         var i = 0
@@ -163,6 +271,9 @@ enum CLI {
             if flagNames.contains(arg), i + 1 < args.count {
                 result.flags[arg] = args[i + 1]
                 i += 2
+            } else if boolFlagNames.contains(arg) {
+                result.boolFlags.insert(arg)
+                i += 1
             } else if !arg.hasPrefix("-") && positionalIndex < positionalNames.count {
                 result.positional[positionalNames[positionalIndex]] = arg
                 positionalIndex += 1

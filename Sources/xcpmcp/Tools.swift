@@ -105,5 +105,97 @@ enum ToolDefs {
         ])
     )
 
-    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile]
+    static let moveFile = Tool(
+        name: "move_file",
+        description: "Move a file to a different group within an Xcode project (.xcodeproj). Only changes where the file appears in the project navigator — does not move the file on disk. Build phase membership is unchanged.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "file_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Path of the file to move within the project"),
+                ]),
+                "to_group": .object([
+                    "type": .string("string"),
+                    "description": .string("Destination group path (e.g. 'Sources/Models'). Created if it doesn't exist."),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("file_path"), .string("to_group")]),
+        ])
+    )
+
+    static let removeGroup = Tool(
+        name: "remove_group",
+        description: "Remove a group from an Xcode project (.xcodeproj). By default only removes empty groups. Use recursive=true to remove the group and all its children (files are removed from the project but not deleted from disk).",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "group": .object([
+                    "type": .string("string"),
+                    "description": .string("Group path to remove (e.g. 'Sources/OldFolder')"),
+                ]),
+                "recursive": .object([
+                    "type": .string("boolean"),
+                    "description": .string("If true, remove the group and all children recursively. Default is false."),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("group")]),
+        ])
+    )
+
+    static let renameGroup = Tool(
+        name: "rename_group",
+        description: "Rename a group in an Xcode project (.xcodeproj). Only changes the group name in the project navigator — does not rename any folder on disk.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "group": .object([
+                    "type": .string("string"),
+                    "description": .string("Current group path (e.g. 'Sources/OldName')"),
+                ]),
+                "new_name": .object([
+                    "type": .string("string"),
+                    "description": .string("New name for the group"),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("group"), .string("new_name")]),
+        ])
+    )
+
+    static let moveGroup = Tool(
+        name: "move_group",
+        description: "Move a group under a different parent group in an Xcode project (.xcodeproj). Only changes the project navigator hierarchy — does not move any folders on disk.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "group": .object([
+                    "type": .string("string"),
+                    "description": .string("Group path to move (e.g. 'Sources/Models')"),
+                ]),
+                "to_group": .object([
+                    "type": .string("string"),
+                    "description": .string("Destination parent group path (e.g. 'Sources/NewParent'). Created if it doesn't exist."),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("group"), .string("to_group")]),
+        ])
+    )
+
+    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile, moveFile, removeGroup, renameGroup, moveGroup]
 }
