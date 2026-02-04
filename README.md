@@ -13,6 +13,10 @@ Also works as a standalone CLI.
 | `list_groups` | Show the group/folder hierarchy |
 | `add_file` | Add a file to a target (Sources or Resources build phase) |
 | `remove_file` | Remove a file reference from the project |
+| `move_file` | Move a file to a different group (project navigator only, not on disk) |
+| `remove_group` | Remove a group (empty, or recursive with all children) |
+| `rename_group` | Rename a group in the project navigator |
+| `move_group` | Move a group under a different parent group |
 
 ## Installation
 
@@ -34,15 +38,6 @@ To uninstall:
 
 ```bash
 make uninstall
-```
-
-### Manual setup
-
-If you prefer not to use `make install`:
-
-```bash
-swift build -c release
-claude mcp add --transport stdio --scope user xcpmcp -- /path/to/xcpmcp/.build/release/xcpmcp
 ```
 
 ## CLI Usage
@@ -76,6 +71,21 @@ xcpmcp remove-file MyApp.xcodeproj Sources/OldFile.swift --target MyApp
 
 # Remove a file from all targets
 xcpmcp remove-file MyApp.xcodeproj Sources/OldFile.swift
+
+# Move a file to a different group
+xcpmcp move-file MyApp.xcodeproj Sources/Models/User.swift --to-group Sources/NewModels
+
+# Remove an empty group
+xcpmcp remove-group MyApp.xcodeproj Sources/OldFolder
+
+# Remove a group and all its children
+xcpmcp remove-group MyApp.xcodeproj Sources/OldFolder --recursive
+
+# Rename a group
+xcpmcp rename-group MyApp.xcodeproj Sources/OldName --new-name NewName
+
+# Move a group under a different parent
+xcpmcp move-group MyApp.xcodeproj Sources/Models --to-group Sources/Core
 ```
 
 When run with no arguments, it starts as an MCP server over stdin/stdout.
