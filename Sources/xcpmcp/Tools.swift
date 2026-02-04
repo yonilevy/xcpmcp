@@ -197,5 +197,28 @@ enum ToolDefs {
         ])
     )
 
-    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile, moveFile, removeGroup, renameGroup, moveGroup]
+    static let sortGroup = Tool(
+        name: "sort_group",
+        description: "Sort children of a group in an Xcode project (.xcodeproj) alphabetically, placing groups before files. Use this to tidy the project navigator order.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "group": .object([
+                    "type": .string("string"),
+                    "description": .string("Group path to sort (e.g. 'Sources/Models')"),
+                ]),
+                "recursive": .object([
+                    "type": .string("boolean"),
+                    "description": .string("If true, sort all nested groups recursively. Default is false."),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("group")]),
+        ])
+    )
+
+    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile, moveFile, removeGroup, renameGroup, moveGroup, sortGroup]
 }

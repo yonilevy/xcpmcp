@@ -203,6 +203,28 @@ enum CLI {
             )
             try printResult(MoveGroupHandler.handle(moveGroupParams))
 
+        case "sort-group":
+            let parsed = parseArgs(Array(args.dropFirst()), positional: ["project_path", "group"], flags: [], boolFlags: ["--recursive"])
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let group = parsed.positional["group"] else {
+                printError("Missing group path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            var sortGroupArgs: [String: Value] = [
+                "project_path": .string(projectPath),
+                "group": .string(group),
+            ]
+            if parsed.boolFlags.contains("--recursive") {
+                sortGroupArgs["recursive"] = .bool(true)
+            }
+            let sortGroupParams = CallTool.Parameters(name: "sort_group", arguments: sortGroupArgs)
+            try printResult(SortGroupHandler.handle(sortGroupParams))
+
         case "help", "--help", "-h":
             printUsage()
 
@@ -248,6 +270,7 @@ enum CLI {
               xcpmcp remove-group <project.xcodeproj> <group> [--recursive]
               xcpmcp rename-group <project.xcodeproj> <group> --new-name <name>
               xcpmcp move-group <project.xcodeproj> <group> --to-group <path>
+              xcpmcp sort-group <project.xcodeproj> <group> [--recursive]
               xcpmcp help
 
             When run with no arguments, starts as an MCP server (for use with Claude Code).

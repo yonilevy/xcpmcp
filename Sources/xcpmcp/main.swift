@@ -37,6 +37,8 @@ if args.count >= 2 {
                 return try RenameGroupHandler.handle(params)
             case "move_group":
                 return try MoveGroupHandler.handle(params)
+            case "sort_group":
+                return try SortGroupHandler.handle(params)
             default:
                 return .init(content: [.text("Unknown tool: \(params.name)")], isError: true)
             }
