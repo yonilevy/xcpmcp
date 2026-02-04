@@ -21,7 +21,11 @@ install: build
 	@printf "Register xcpmcp as a Claude Code MCP server? [y/N] "; \
 	read ans; \
 	case "$$ans" in \
-		[yY]*) claude mcp add --transport stdio --scope user xcpmcp -- $(PREFIX)/xcpmcp ;; \
+		[yY]*) if claude mcp get xcpmcp >/dev/null 2>&1; then \
+			echo "xcpmcp is already registered as an MCP server."; \
+		else \
+			claude mcp add --transport stdio --scope user xcpmcp -- $(PREFIX)/xcpmcp; \
+		fi ;; \
 		*) echo "Skipped. You can register it later with:"; \
 		   echo ""; \
 		   echo "  claude mcp add --transport stdio --scope user xcpmcp -- $(PREFIX)/xcpmcp"; \
