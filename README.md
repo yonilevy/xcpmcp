@@ -21,7 +21,7 @@ Also works as a standalone CLI.
 ## Installation
 
 ```bash
-git clone https://github.com/user/xcpmcp.git  # or your repo URL
+git clone https://github.com/yonilevy/xcpmcp.git
 cd xcpmcp
 make install
 ```
