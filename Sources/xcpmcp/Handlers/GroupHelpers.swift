@@ -21,6 +21,23 @@ enum GroupHelpers {
         return nil
     }
 
+    /// Compute the path of `target` relative to the directory `base`, e.g. for a
+    /// `<group>`-relative file reference whose parent group resolves to `base`.
+    /// (XcodeProj has an equivalent but it's internal to that module.)
+    static func relativePath(from base: Path, to target: Path) -> String {
+        let baseComponents = base.absolute().components
+        let targetComponents = target.absolute().components
+        var shared = 0
+        while shared < baseComponents.count, shared < targetComponents.count,
+              baseComponents[shared] == targetComponents[shared] {
+            shared += 1
+        }
+        let ups = Array(repeating: "..", count: baseComponents.count - shared)
+        let downs = targetComponents[shared...]
+        let components = ups + downs
+        return components.isEmpty ? "." : components.joined(separator: "/")
+    }
+
     /// Find a child group of `parent` matching `component`. Prefers a child whose
     /// resolved on-disk folder matches the expected location (so a partial or
     /// attribute-divergent path still resolves to the real container instead of

@@ -37,10 +37,24 @@ enum MoveFileHandler {
 
         // Add to destination group
         destGroup.children.append(fileRef)
+        fileRef.parent = destGroup
+
+        // A `<group>`-relative reference's `path` is interpreted relative to its
+        // parent group, so reparenting without recomputing it silently re-roots the
+        // file under the destination group's folder (red/misplaced in Xcode, even
+        // though the file never moved on disk). Recompute the path so the reference
+        // keeps pointing at the same on-disk file.
+        if fileRef.sourceTree == .group,
+           let destFolder = try? destGroup.fullPath(sourceRoot: sourceRoot) {
+            fileRef.path = GroupHelpers.relativePath(from: destFolder, to: absFilePath)
+            // Drop the now-redundant explicit name to keep the reference canonical.
+            if let refPath = fileRef.path, Path(refPath).lastComponent == fileRef.name {
+                fileRef.name = nil
+            }
+        }
 
         try xcodeproj.write(path: projPath)
 
-        let fileName = fileRef.name ?? fileRef.path ?? absFilePath.lastComponent
-        return .init(content: [.text("Moved '\(fileName)' to group '\(toGroup)'.")])
+        return .init(content: [.text("Moved '\(absFilePath.lastComponent)' to group '\(toGroup)'.")])
     }
 }

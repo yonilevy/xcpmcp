@@ -26,6 +26,11 @@ enum MoveGroupHandler {
 
         let group = result.group
         let oldParent = result.parent
+        let displayName = group.name ?? group.path ?? groupPath
+
+        // The group's real on-disk folder, captured before reparenting changes how it
+        // would resolve.
+        let groupFolder = try? group.fullPath(sourceRoot: sourceRoot)
 
         // Find or create destination group
         let destGroup = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: toGroup, sourceRoot: sourceRoot)
@@ -35,10 +40,23 @@ enum MoveGroupHandler {
 
         // Add to new parent
         destGroup.children.append(group)
+        group.parent = destGroup
+
+        // A folder-backed group's `path` is relative to its parent, so reparenting
+        // without recomputing it silently re-roots the group's entire subtree under
+        // the destination folder (every descendant file then resolves to the wrong
+        // place). Recompute the path so the group keeps pointing at its real folder.
+        if group.sourceTree == .group, group.path != nil,
+           let groupFolder,
+           let destFolder = try? destGroup.fullPath(sourceRoot: sourceRoot) {
+            group.path = GroupHelpers.relativePath(from: destFolder, to: groupFolder)
+            if let path = group.path, Path(path).lastComponent == group.name {
+                group.name = nil
+            }
+        }
 
         try xcodeproj.write(path: projPath)
 
-        let groupName = group.name ?? group.path ?? groupPath
-        return .init(content: [.text("Moved group '\(groupName)' to '\(toGroup)'.")])
+        return .init(content: [.text("Moved group '\(displayName)' to '\(toGroup)'.")])
     }
 }
