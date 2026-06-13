@@ -16,10 +16,11 @@ enum MoveGroupHandler {
         }
 
         let projPath = Path(projectPath)
+        let sourceRoot = projPath.parent()
         let xcodeproj = try XcodeProj(path: projPath)
         let pbxproj = xcodeproj.pbxproj
 
-        guard let result = try GroupHelpers.findGroupWithParent(pbxproj: pbxproj, groupPath: groupPath) else {
+        guard let result = try GroupHelpers.findGroupWithParent(pbxproj: pbxproj, groupPath: groupPath, sourceRoot: sourceRoot) else {
             return .init(content: [.text("Group '\(groupPath)' not found.")], isError: true)
         }
 
@@ -27,7 +28,7 @@ enum MoveGroupHandler {
         let oldParent = result.parent
 
         // Find or create destination group
-        let destGroup = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: toGroup)
+        let destGroup = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: toGroup, sourceRoot: sourceRoot)
 
         // Remove from old parent
         oldParent.children.removeAll { $0 == group }

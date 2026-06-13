@@ -15,10 +15,11 @@ enum RemoveGroupHandler {
         let recursive = params.arguments?["recursive"]?.boolValue ?? false
 
         let projPath = Path(projectPath)
+        let sourceRoot = projPath.parent()
         let xcodeproj = try XcodeProj(path: projPath)
         let pbxproj = xcodeproj.pbxproj
 
-        guard let result = try GroupHelpers.findGroupWithParent(pbxproj: pbxproj, groupPath: groupPath) else {
+        guard let result = try GroupHelpers.findGroupWithParent(pbxproj: pbxproj, groupPath: groupPath, sourceRoot: sourceRoot) else {
             return .init(content: [.text("Group '\(groupPath)' not found.")], isError: true)
         }
 

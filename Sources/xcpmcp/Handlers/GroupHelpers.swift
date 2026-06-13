@@ -21,8 +21,24 @@ enum GroupHelpers {
         return nil
     }
 
+    /// Find a child group of `parent` matching `component`. Prefers a child whose
+    /// resolved on-disk folder matches the expected location (so a partial or
+    /// attribute-divergent path still resolves to the real container instead of
+    /// forging a phantom sibling), then falls back to a name/path attribute match.
+    static func childGroup(of parent: PBXGroup, named component: String, sourceRoot: Path) -> PBXGroup? {
+        let childGroups = parent.children.compactMap { $0 as? PBXGroup }
+        if let expected = (try? parent.fullPath(sourceRoot: sourceRoot)).map({ ($0 + component).normalize() }),
+           let match = childGroups.first(where: {
+               guard let resolved = try? $0.fullPath(sourceRoot: sourceRoot) else { return false }
+               return resolved.normalize() == expected
+           }) {
+            return match
+        }
+        return childGroups.first(where: { $0.name == component || $0.path == component })
+    }
+
     /// Navigate an existing group hierarchy by path. Does not create missing groups.
-    static func findGroup(pbxproj: PBXProj, groupPath: String) throws -> PBXGroup? {
+    static func findGroup(pbxproj: PBXProj, groupPath: String, sourceRoot: Path) throws -> PBXGroup? {
         guard let rootProject = try pbxproj.rootProject(),
               let mainGroup = rootProject.mainGroup else {
             return nil
@@ -31,18 +47,16 @@ enum GroupHelpers {
         let components = groupPath.split(separator: "/").map(String.init)
         var current = mainGroup
         for component in components {
-            if let existing = current.group(named: component)
-                ?? current.children.compactMap({ $0 as? PBXGroup }).first(where: { $0.path == component }) {
-                current = existing
-            } else {
+            guard let existing = childGroup(of: current, named: component, sourceRoot: sourceRoot) else {
                 return nil
             }
+            current = existing
         }
         return current
     }
 
     /// Navigate group hierarchy, creating missing groups along the way.
-    static func findOrCreateGroup(pbxproj: PBXProj, groupPath: String) throws -> PBXGroup {
+    static func findOrCreateGroup(pbxproj: PBXProj, groupPath: String, sourceRoot: Path) throws -> PBXGroup {
         guard let rootProject = try pbxproj.rootProject(),
               let mainGroup = rootProject.mainGroup else {
             throw NSError(domain: "xcpmcp", code: 1, userInfo: [NSLocalizedDescriptionKey: "No main group found"])
@@ -51,22 +65,22 @@ enum GroupHelpers {
         let components = groupPath.split(separator: "/").map(String.init)
         var current = mainGroup
         for component in components {
-            if let existing = current.group(named: component)
-                ?? current.children.compactMap({ $0 as? PBXGroup }).first(where: { $0.path == component }) {
+            if let existing = childGroup(of: current, named: component, sourceRoot: sourceRoot) {
                 current = existing
             } else {
                 let newGroups = try current.addGroup(named: component)
-                if let newGroup = newGroups.first {
-                    pbxproj.add(object: newGroup)
-                    current = newGroup
+                guard let newGroup = newGroups.first else {
+                    throw NSError(domain: "xcpmcp", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create group '\(component)'"])
                 }
+                pbxproj.add(object: newGroup)
+                current = newGroup
             }
         }
         return current
     }
 
     /// Find a group and its parent. Returns (group, parent) or nil.
-    static func findGroupWithParent(pbxproj: PBXProj, groupPath: String) throws -> (group: PBXGroup, parent: PBXGroup)? {
+    static func findGroupWithParent(pbxproj: PBXProj, groupPath: String, sourceRoot: Path) throws -> (group: PBXGroup, parent: PBXGroup)? {
         guard let rootProject = try pbxproj.rootProject(),
               let mainGroup = rootProject.mainGroup else {
             return nil
@@ -77,15 +91,13 @@ enum GroupHelpers {
 
         var current = mainGroup
         for (i, component) in components.enumerated() {
-            if let existing = current.group(named: component)
-                ?? current.children.compactMap({ $0 as? PBXGroup }).first(where: { $0.path == component }) {
-                if i == components.count - 1 {
-                    return (group: existing, parent: current)
-                }
-                current = existing
-            } else {
+            guard let existing = childGroup(of: current, named: component, sourceRoot: sourceRoot) else {
                 return nil
             }
+            if i == components.count - 1 {
+                return (group: existing, parent: current)
+            }
+            current = existing
         }
         return nil
     }

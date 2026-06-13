@@ -15,10 +15,11 @@ enum SortGroupHandler {
         let recursive = params.arguments?["recursive"]?.boolValue ?? false
 
         let projPath = Path(projectPath)
+        let sourceRoot = projPath.parent()
         let xcodeproj = try XcodeProj(path: projPath)
         let pbxproj = xcodeproj.pbxproj
 
-        guard let group = try GroupHelpers.findGroup(pbxproj: pbxproj, groupPath: groupPath) else {
+        guard let group = try GroupHelpers.findGroup(pbxproj: pbxproj, groupPath: groupPath, sourceRoot: sourceRoot) else {
             return .init(content: [.text("Group '\(groupPath)' not found.")], isError: true)
         }
 

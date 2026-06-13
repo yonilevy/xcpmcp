@@ -33,7 +33,7 @@ enum MoveFileHandler {
         }
 
         // Find or create destination group
-        let destGroup = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: toGroup)
+        let destGroup = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: toGroup, sourceRoot: sourceRoot)
 
         // Add to destination group
         destGroup.children.append(fileRef)
