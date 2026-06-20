@@ -44,7 +44,12 @@ xcpmcp list-files <project.xcodeproj> [--target <name>]
 xcpmcp list-groups <project.xcodeproj>
 xcpmcp add-file <project.xcodeproj> <file> --target <name> [--group <path>] [--type source|resource]
 xcpmcp remove-file <project.xcodeproj> <file> [--target <name>]
+xcpmcp add-swift-package <project.xcodeproj> --target <name> --products <A,B> (--local-path <path> | --url <git-url> <requirement>)
+xcpmcp list-swift-packages <project.xcodeproj>
+xcpmcp remove-swift-package <project.xcodeproj> (--url <git-url> | --local-path <path>) [--products <A,B>] [--target <name>]
 ```
+
+Remote `<requirement>` flags: `--up-to-next-major <v>` | `--up-to-next-minor <v>` | `--exact <v>` | `--from <v> --to <v>` | `--branch <name>` | `--revision <sha>`.
 
 ## Architecture
 
@@ -58,7 +63,17 @@ Sources/xcpmcp/
     ├── ListFilesHandler.swift      # Lists files, optionally filtered by target
     ├── ListGroupsHandler.swift     # Prints group hierarchy tree
     ├── AddFileHandler.swift        # Adds a file to a target and group
-    └── RemoveFileHandler.swift     # Removes a file from target(s) and project
+    ├── RemoveFileHandler.swift     # Removes a file from target(s) and project
+    ├── MoveFileHandler.swift       # Moves a file reference to a different group
+    ├── RemoveGroupHandler.swift    # Removes a group (empty or recursive)
+    ├── RenameGroupHandler.swift    # Renames a group
+    ├── MoveGroupHandler.swift      # Moves a group under a new parent
+    ├── SortGroupHandler.swift      # Sorts a group's children alphabetically
+    ├── GroupHelpers.swift          # Shared group lookup/creation + path math
+    ├── AddSwiftPackageHandler.swift     # Adds a local/remote SwiftPM dependency, links products
+    ├── ListSwiftPackagesHandler.swift   # Lists declared packages + per-target linked products
+    ├── RemoveSwiftPackageHandler.swift  # Unlinks products / removes a package reference
+    └── SwiftPackageHelpers.swift        # Requirement parsing + shared package helpers
 ```
 
 ### Entry point (main.swift)
@@ -81,6 +96,12 @@ Both CLI and MCP paths construct `CallTool.Parameters` and call the same handler
 
 **RemoveFileHandler** — Finds the `PBXFileReference` by full path or filename, removes `PBXBuildFile` entries from build phases (scoped to one target or all), removes from parent group's children, deletes objects from pbxproj, saves.
 
+**AddSwiftPackageHandler** — Adds a Swift Package and links one or more library products into a target. Local packages are written as a modern `XCLocalSwiftPackageReference` (with `relativePath`) added to `PBXProject.packageReferences`; remote packages as `XCRemoteSwiftPackageReference` (`repositoryURL` + `requirement`). For each product it creates an `XCSwiftPackageProductDependency` (remote deps carry a `package` link; local deps don't), appends it to the target's `packageProductDependencies`, and adds a `PBXBuildFile` (`productRef`) to the target's `PBXFrameworksBuildPhase`. Idempotent at every level (package reference, product dependency, target link, build file). Does **not** use XcodeProj's `addLocalSwiftPackage` because that emits the legacy folder-reference form instead of `XCLocalSwiftPackageReference`.
+
+**ListSwiftPackagesHandler** — Lists `rootProject.remotePackages` (url + requirement) and `localPackages` (relativePath), then per native target lists linked products from `packageProductDependencies`, labeling each remote (→ its package url) or local.
+
+**RemoveSwiftPackageHandler** — Identifies the package by `url` (remote) or `local_path` (local). Remote product dependencies are matched via their `package` link; local ones (which have no package link) are matched as package-less deps, optionally narrowed by `products`. With `--target` it only unlinks from that target; without it, unlinks from all targets and removes the package reference. Orphaned `XCSwiftPackageProductDependency`/`PBXBuildFile` objects are deleted (XcodeProj serializes every object it holds, so detached objects must be explicitly removed).
+
 ## Dependencies
 
 - **XcodeProj** (tuist/XcodeProj ~8.12.0) — .xcodeproj read/write
@@ -94,3 +115,7 @@ Both CLI and MCP paths construct `CallTool.Parameters` and call the same handler
 - `remove-file` without `--target` removes from all targets.
 - File type (source vs resource) is auto-detected from extension but can be overridden with `--type`.
 - `addFile(validatePresence: false)` is used on the XcodeProj side since we do our own existence check earlier (before project modification).
+- Local Swift packages use the modern `XCLocalSwiftPackageReference` form (matching what current Xcode writes), not XcodeProj's legacy folder-reference `addLocalSwiftPackage`.
+- `add_swift_package` is fully idempotent; XcodeProj's own `addSwiftPackage` is not (it re-appends the target link and build file on repeat calls), so we guard each step ourselves.
+- Package operations edit only the `.pbxproj`; resolving/fetching happens on the next build (`Package.resolved` is regenerated automatically, so the tool doesn't touch it).
+- `remove_swift_package` without `--target` removes the package reference entirely; with `--target` it only unlinks from that target and keeps the reference (mirrors `remove-file`'s all-vs-one-target behavior).

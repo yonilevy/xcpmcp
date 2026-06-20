@@ -220,5 +220,96 @@ enum ToolDefs {
         ])
     )
 
-    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile, moveFile, removeGroup, renameGroup, moveGroup, sortGroup]
+    static let addSwiftPackage = Tool(
+        name: "add_swift_package",
+        description: "Add a Swift Package dependency to an Xcode project (.xcodeproj) and link one or more of its library products into a target. Supports both local packages (by relative path) and remote packages (by git URL + version requirement). Idempotent: re-linking a product that's already linked is a no-op. Use this instead of manually editing the .pbxproj. Note: this only edits the project file; run a build (or let Xcode resolve) to fetch/resolve the package.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "target": .object([
+                    "type": .string("string"),
+                    "description": .string("Target to link the package product(s) into. Use list_targets to discover available targets."),
+                ]),
+                "products": .object([
+                    "type": .string("array"),
+                    "items": .object(["type": .string("string")]),
+                    "description": .string("Library product names to link (e.g. [\"Alamofire\"]). At least one is required."),
+                ]),
+                "local_path": .object([
+                    "type": .string("string"),
+                    "description": .string("For a LOCAL package: relative path to the package directory (relative to the .xcodeproj's parent folder, e.g. '../mypackage'). Mutually exclusive with 'url'."),
+                ]),
+                "url": .object([
+                    "type": .string("string"),
+                    "description": .string("For a REMOTE package: the git repository URL (e.g. 'https://github.com/Alamofire/Alamofire'). Requires 'requirement'. Mutually exclusive with 'local_path'."),
+                ]),
+                "requirement": .object([
+                    "type": .string("object"),
+                    "description": .string("Version requirement for a remote package. An object with 'kind' plus fields: kind='upToNextMajor'|'upToNextMinor' with 'minimum'; kind='exactVersion' with 'version'; kind='versionRange' with 'minimum' and 'maximum'; kind='branch' with 'branch'; kind='revision' with 'revision'."),
+                    "properties": .object([
+                        "kind": .object(["type": .string("string"), "enum": .array([.string("upToNextMajor"), .string("upToNextMinor"), .string("exactVersion"), .string("versionRange"), .string("branch"), .string("revision")])]),
+                        "minimum": .object(["type": .string("string")]),
+                        "maximum": .object(["type": .string("string")]),
+                        "version": .object(["type": .string("string")]),
+                        "branch": .object(["type": .string("string")]),
+                        "revision": .object(["type": .string("string")]),
+                    ]),
+                ]),
+            ]),
+            "required": .array([.string("project_path"), .string("target"), .string("products")]),
+        ])
+    )
+
+    static let listSwiftPackages = Tool(
+        name: "list_swift_packages",
+        description: "List the Swift Package dependencies declared in an Xcode project (.xcodeproj) — both local and remote packages with their version requirements — and which package products are linked into each target. Use this to inspect packages before adding or removing them.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+            ]),
+            "required": .array([.string("project_path")]),
+        ])
+    )
+
+    static let removeSwiftPackage = Tool(
+        name: "remove_swift_package",
+        description: "Remove a Swift Package dependency from an Xcode project (.xcodeproj). Identify the package by 'url' (remote) or 'local_path' (local). Without 'target', unlinks the package's products from all targets and removes the package reference entirely; with 'target', only unlinks from that target. Optionally restrict to specific 'products'. Use this instead of manually editing the .pbxproj.",
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([
+                "project_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Absolute path to the .xcodeproj directory"),
+                ]),
+                "url": .object([
+                    "type": .string("string"),
+                    "description": .string("Git URL identifying a remote package to remove. Mutually exclusive with 'local_path'."),
+                ]),
+                "local_path": .object([
+                    "type": .string("string"),
+                    "description": .string("Relative path identifying a local package to remove. Mutually exclusive with 'url'."),
+                ]),
+                "products": .object([
+                    "type": .string("array"),
+                    "items": .object(["type": .string("string")]),
+                    "description": .string("Optional: only unlink these specific product names. If omitted, all of the package's linked products are unlinked."),
+                ]),
+                "target": .object([
+                    "type": .string("string"),
+                    "description": .string("Optional: only unlink from this target. If omitted, unlinks from all targets and removes the package reference."),
+                ]),
+            ]),
+            "required": .array([.string("project_path")]),
+        ])
+    )
+
+    static let all: [Tool] = [listTargets, listFiles, listGroups, addFile, removeFile, moveFile, removeGroup, renameGroup, moveGroup, sortGroup, addSwiftPackage, listSwiftPackages, removeSwiftPackage]
 }

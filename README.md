@@ -17,6 +17,10 @@ Also works as a standalone CLI.
 | `remove_group` | Remove a group (empty, or recursive with all children) |
 | `rename_group` | Rename a group in the project navigator |
 | `move_group` | Move a group under a different parent group |
+| `sort_group` | Sort a group's children alphabetically (groups before files) |
+| `add_swift_package` | Add a local or remote Swift Package and link its product(s) into a target |
+| `list_swift_packages` | List declared Swift Packages and the products linked per target |
+| `remove_swift_package` | Remove a Swift Package (or unlink its products from a target) |
 
 ## Installation
 
@@ -86,7 +90,34 @@ xcpmcp rename-group MyApp.xcodeproj Sources/OldName --new-name NewName
 
 # Move a group under a different parent
 xcpmcp move-group MyApp.xcodeproj Sources/Models --to-group Sources/Core
+
+# Sort a group's children alphabetically
+xcpmcp sort-group MyApp.xcodeproj Sources/Models
+
+# Add a local Swift Package and link a product into a target
+xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products MyLib --local-path ../mylib
+
+# Add a remote Swift Package (version requirement variants)
+xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products Alamofire \
+  --url https://github.com/Alamofire/Alamofire --up-to-next-major 5.0.0
+#   other requirements: --up-to-next-minor <v> | --exact <v> | --from <v> --to <v>
+#                       | --branch <name> | --revision <sha>
+
+# Link multiple products in one call
+xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products "Logging,Metrics" \
+  --url https://github.com/apple/swift-log --up-to-next-major 1.0.0
+
+# List declared packages and per-target linked products
+xcpmcp list-swift-packages MyApp.xcodeproj
+
+# Unlink a package's products from one target
+xcpmcp remove-swift-package MyApp.xcodeproj --url https://github.com/Alamofire/Alamofire --target MyApp
+
+# Remove a package entirely (unlink from all targets + drop the package reference)
+xcpmcp remove-swift-package MyApp.xcodeproj --local-path ../mylib
 ```
+
+> Package operations only edit the `.pbxproj`. Run a build (or open in Xcode) afterwards to fetch/resolve the package. `add_swift_package` is idempotent — re-linking an already-linked product is a no-op.
 
 When run with no arguments, it starts as an MCP server over stdin/stdout.
 

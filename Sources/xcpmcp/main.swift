@@ -39,6 +39,12 @@ if args.count >= 2 {
                 return try MoveGroupHandler.handle(params)
             case "sort_group":
                 return try SortGroupHandler.handle(params)
+            case "add_swift_package":
+                return try AddSwiftPackageHandler.handle(params)
+            case "list_swift_packages":
+                return try ListSwiftPackagesHandler.handle(params)
+            case "remove_swift_package":
+                return try RemoveSwiftPackageHandler.handle(params)
             default:
                 return .init(content: [.text("Unknown tool: \(params.name)")], isError: true)
             }

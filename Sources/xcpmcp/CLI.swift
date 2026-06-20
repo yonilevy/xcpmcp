@@ -225,6 +225,84 @@ enum CLI {
             let sortGroupParams = CallTool.Parameters(name: "sort_group", arguments: sortGroupArgs)
             try printResult(SortGroupHandler.handle(sortGroupParams))
 
+        case "add-swift-package":
+            let parsed = parseArgs(
+                Array(args.dropFirst()),
+                positional: ["project_path"],
+                flags: ["--target", "--products", "--local-path", "--url",
+                        "--branch", "--revision", "--exact", "--up-to-next-major", "--up-to-next-minor", "--from", "--to"]
+            )
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let target = parsed.flags["--target"] else {
+                printError("Missing --target")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            guard let products = parsed.flags["--products"] else {
+                printError("Missing --products (comma-separated product names)")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            var arguments: [String: Value] = [
+                "project_path": .string(projectPath),
+                "target": .string(target),
+                "products": .string(products),
+            ]
+            if let localPath = parsed.flags["--local-path"] {
+                arguments["local_path"] = .string(localPath)
+            }
+            if let url = parsed.flags["--url"] {
+                arguments["url"] = .string(url)
+                if let requirement = buildRequirement(parsed.flags) {
+                    arguments["requirement"] = requirement
+                }
+            }
+            let params = CallTool.Parameters(name: "add_swift_package", arguments: arguments)
+            try printResult(AddSwiftPackageHandler.handle(params))
+
+        case "list-swift-packages":
+            guard let projectPath = args.dropFirst().first else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            let params = CallTool.Parameters(
+                name: "list_swift_packages",
+                arguments: ["project_path": .string(projectPath)]
+            )
+            try printResult(ListSwiftPackagesHandler.handle(params))
+
+        case "remove-swift-package":
+            let parsed = parseArgs(
+                Array(args.dropFirst()),
+                positional: ["project_path"],
+                flags: ["--url", "--local-path", "--products", "--target"]
+            )
+            guard let projectPath = parsed.positional["project_path"] else {
+                printError("Missing project path")
+                printUsage()
+                throw ExitError.missingArgument
+            }
+            var arguments: [String: Value] = ["project_path": .string(projectPath)]
+            if let url = parsed.flags["--url"] {
+                arguments["url"] = .string(url)
+            }
+            if let localPath = parsed.flags["--local-path"] {
+                arguments["local_path"] = .string(localPath)
+            }
+            if let products = parsed.flags["--products"] {
+                arguments["products"] = .string(products)
+            }
+            if let target = parsed.flags["--target"] {
+                arguments["target"] = .string(target)
+            }
+            let params = CallTool.Parameters(name: "remove_swift_package", arguments: arguments)
+            try printResult(RemoveSwiftPackageHandler.handle(params))
+
         case "help", "--help", "-h":
             printUsage()
 
@@ -232,6 +310,29 @@ enum CLI {
             printError("Unknown command: \(command)")
             printUsage()
         }
+    }
+
+    /// Build a `requirement` object Value from the CLI's discrete requirement flags.
+    private static func buildRequirement(_ flags: [String: String]) -> Value? {
+        if let v = flags["--up-to-next-major"] {
+            return .object(["kind": .string("upToNextMajor"), "minimum": .string(v)])
+        }
+        if let v = flags["--up-to-next-minor"] {
+            return .object(["kind": .string("upToNextMinor"), "minimum": .string(v)])
+        }
+        if let v = flags["--exact"] {
+            return .object(["kind": .string("exactVersion"), "version": .string(v)])
+        }
+        if let from = flags["--from"], let to = flags["--to"] {
+            return .object(["kind": .string("versionRange"), "minimum": .string(from), "maximum": .string(to)])
+        }
+        if let v = flags["--branch"] {
+            return .object(["kind": .string("branch"), "branch": .string(v)])
+        }
+        if let v = flags["--revision"] {
+            return .object(["kind": .string("revision"), "revision": .string(v)])
+        }
+        return nil
     }
 
     private static func printResult(_ result: CallTool.Result) {
@@ -271,6 +372,14 @@ enum CLI {
               xcpmcp rename-group <project.xcodeproj> <group> --new-name <name>
               xcpmcp move-group <project.xcodeproj> <group> --to-group <path>
               xcpmcp sort-group <project.xcodeproj> <group> [--recursive]
+              xcpmcp add-swift-package <project.xcodeproj> --target <name> --products <A,B> \\
+                       (--local-path <path> | --url <git-url> <requirement>)
+                       requirement (remote only): --up-to-next-major <v> | --up-to-next-minor <v>
+                                                | --exact <v> | --from <v> --to <v>
+                                                | --branch <name> | --revision <sha>
+              xcpmcp list-swift-packages <project.xcodeproj>
+              xcpmcp remove-swift-package <project.xcodeproj> (--url <git-url> | --local-path <path>) \\
+                       [--products <A,B>] [--target <name>]
               xcpmcp help
 
             When run with no arguments, starts as an MCP server (for use with Claude Code).
