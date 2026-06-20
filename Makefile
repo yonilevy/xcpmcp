@@ -8,6 +8,7 @@ build:
 
 install: build
 	mkdir -p $(PREFIX)
+	rm -f $(PREFIX)/xcpmcp
 	cp $(BINARY) $(PREFIX)/xcpmcp
 	@echo ""; \
 	case ":$$PATH:" in \
