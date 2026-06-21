@@ -229,7 +229,7 @@ enum CLI {
             let parsed = parseArgs(
                 Array(args.dropFirst()),
                 positional: ["project_path"],
-                flags: ["--target", "--products", "--local-path", "--url",
+                flags: ["--target", "--products", "--local-path", "--local-style", "--group", "--url",
                         "--branch", "--revision", "--exact", "--up-to-next-major", "--up-to-next-minor", "--from", "--to"]
             )
             guard let projectPath = parsed.positional["project_path"] else {
@@ -254,6 +254,12 @@ enum CLI {
             ]
             if let localPath = parsed.flags["--local-path"] {
                 arguments["local_path"] = .string(localPath)
+            }
+            if let localStyle = parsed.flags["--local-style"] {
+                arguments["local_style"] = .string(localStyle)
+            }
+            if let group = parsed.flags["--group"] {
+                arguments["group"] = .string(group)
             }
             if let url = parsed.flags["--url"] {
                 arguments["url"] = .string(url)
@@ -373,7 +379,8 @@ enum CLI {
               xcpmcp move-group <project.xcodeproj> <group> --to-group <path>
               xcpmcp sort-group <project.xcodeproj> <group> [--recursive]
               xcpmcp add-swift-package <project.xcodeproj> --target <name> --products <A,B> \\
-                       (--local-path <path> | --url <git-url> <requirement>)
+                       (--local-path <path> [--local-style packageReference|folderReference] [--group <path>]
+                        | --url <git-url> <requirement>)
                        requirement (remote only): --up-to-next-major <v> | --up-to-next-minor <v>
                                                 | --exact <v> | --from <v> --to <v>
                                                 | --branch <name> | --revision <sha>

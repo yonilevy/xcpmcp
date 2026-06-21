@@ -97,6 +97,11 @@ xcpmcp sort-group MyApp.xcodeproj Sources/Models
 # Add a local Swift Package and link a product into a target
 xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products MyLib --local-path ../mylib
 
+# Add a local package as a folder reference (PBXFileReference wrapper) instead of the
+# modern XCLocalSwiftPackageReference, optionally placed in a specific group
+xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products MyLib --local-path ../mylib \
+  --local-style folderReference --group Packages
+
 # Add a remote Swift Package (version requirement variants)
 xcpmcp add-swift-package MyApp.xcodeproj --target MyApp --products Alamofire \
   --url https://github.com/Alamofire/Alamofire --up-to-next-major 5.0.0

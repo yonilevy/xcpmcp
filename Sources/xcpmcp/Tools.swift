@@ -243,6 +243,15 @@ enum ToolDefs {
                     "type": .string("string"),
                     "description": .string("For a LOCAL package: relative path to the package directory (relative to the .xcodeproj's parent folder, e.g. '../mypackage'). Mutually exclusive with 'url'."),
                 ]),
+                "local_style": .object([
+                    "type": .string("string"),
+                    "enum": .array([.string("packageReference"), .string("folderReference")]),
+                    "description": .string("How to declare a LOCAL package (default 'packageReference'). 'packageReference' adds a modern XCLocalSwiftPackageReference (what Xcode 15+ writes). 'folderReference' adds a PBXFileReference package wrapper into the group tree instead (the legacy style used when a package folder is dragged into the project). Both link the product identically. Ignored for remote packages."),
+                ]),
+                "group": .object([
+                    "type": .string("string"),
+                    "description": .string("Only for local_style='folderReference': group path to place the package folder reference under (e.g. 'Packages'). Defaults to the project's main group."),
+                ]),
                 "url": .object([
                     "type": .string("string"),
                     "description": .string("For a REMOTE package: the git repository URL (e.g. 'https://github.com/Alamofire/Alamofire'). Requires 'requirement'. Mutually exclusive with 'local_path'."),
@@ -295,7 +304,7 @@ enum ToolDefs {
                 ]),
                 "local_path": .object([
                     "type": .string("string"),
-                    "description": .string("Relative path identifying a local package to remove. Mutually exclusive with 'url'."),
+                    "description": .string("Relative path identifying a local package to remove (matches either a package-reference or a folder-reference local package). Mutually exclusive with 'url'."),
                 ]),
                 "products": .object([
                     "type": .string("array"),

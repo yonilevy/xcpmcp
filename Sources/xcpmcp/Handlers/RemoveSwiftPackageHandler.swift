@@ -28,7 +28,8 @@ enum RemoveSwiftPackageHandler {
 
         // Locate the package reference and a predicate matching its product dependencies.
         let remoteRef: XCRemoteSwiftPackageReference?
-        let localRef: XCLocalSwiftPackageReference?
+        let localRef: XCLocalSwiftPackageReference?      // packageReference style
+        let localFolderRef: PBXFileReference?            // folderReference style
         let identity: String
         let matchesPackage: (XCSwiftPackageProductDependency) -> Bool
 
@@ -38,19 +39,27 @@ enum RemoveSwiftPackageHandler {
             }
             remoteRef = ref
             localRef = nil
+            localFolderRef = nil
             identity = url
             matchesPackage = { $0.package == ref }
         } else {
             let relativePath = localPath!
-            guard let ref = rootProject.localPackages.first(where: { $0.relativePath == relativePath }) else {
+            identity = relativePath
+            remoteRef = nil
+            // Local product dependencies have no link back to their package, so they're
+            // matched by being package-less (optionally narrowed by the product filter) —
+            // regardless of whether the package is declared as a package reference or a
+            // folder reference.
+            matchesPackage = { $0.package == nil }
+            if let ref = rootProject.localPackages.first(where: { $0.relativePath == relativePath }) {
+                localRef = ref
+                localFolderRef = nil
+            } else if let folder = pbxproj.fileReferences.first(where: { $0.path == relativePath && $0.lastKnownFileType == "wrapper" }) {
+                localRef = nil
+                localFolderRef = folder
+            } else {
                 return .init(content: [.text("Local package '\(relativePath)' not found in this project.")], isError: true)
             }
-            remoteRef = nil
-            localRef = ref
-            identity = relativePath
-            // Local product dependencies have no link back to their package, so they're
-            // matched by being package-less (optionally narrowed by the product filter).
-            matchesPackage = { $0.package == nil }
         }
 
         // Final predicate: belongs to this package and, if a product filter was given,
@@ -113,6 +122,13 @@ enum RemoveSwiftPackageHandler {
             } else if let localRef {
                 rootProject.localPackages = rootProject.localPackages.filter { $0 !== localRef }
                 pbxproj.delete(object: localRef)
+                removedPackageRef = true
+            } else if let localFolderRef {
+                // Detach the folder wrapper from whichever group holds it, then delete it.
+                for group in pbxproj.groups {
+                    group.children.removeAll { $0 === localFolderRef }
+                }
+                pbxproj.delete(object: localFolderRef)
                 removedPackageRef = true
             }
         }

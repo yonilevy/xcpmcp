@@ -21,7 +21,12 @@ enum ListSwiftPackagesHandler {
 
         let remote = rootProject.remotePackages
         let local = rootProject.localPackages
-        if remote.isEmpty && local.isEmpty {
+        // Folder-reference local packages aren't XCLocalSwiftPackageReferences — they're
+        // package wrappers in the group tree, detected heuristically by file type.
+        let folderRefs = pbxproj.fileReferences
+            .filter { $0.lastKnownFileType == "wrapper" }
+            .sorted { ($0.path ?? "") < ($1.path ?? "") }
+        if remote.isEmpty && local.isEmpty && folderRefs.isEmpty {
             return .init(content: [.text("No Swift packages declared in this project.")])
         }
 
@@ -30,7 +35,10 @@ enum ListSwiftPackagesHandler {
             lines.append("  remote: \(pkg.repositoryURL ?? "(no url)") (\(SwiftPackageHelpers.describe(pkg.versionRequirement)))")
         }
         for pkg in local.sorted(by: { $0.relativePath < $1.relativePath }) {
-            lines.append("  local:  \(pkg.relativePath)")
+            lines.append("  local:  \(pkg.relativePath) (package reference)")
+        }
+        for ref in folderRefs {
+            lines.append("  local:  \(ref.path ?? ref.name ?? "?") (folder reference)")
         }
 
         // Linked products, grouped by target. A remote dependency points back at its

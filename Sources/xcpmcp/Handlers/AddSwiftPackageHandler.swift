@@ -68,15 +68,50 @@ enum AddSwiftPackageHandler {
                 if Path(relativePath).isAbsolute {
                     return .init(content: [.text("local_path must be a relative path (relative to the .xcodeproj's directory), e.g. '../papergen'.")], isError: true)
                 }
-                if let existing = rootProject.localPackages.first(where: { $0.relativePath == relativePath }) {
-                    localRef = existing
-                } else {
-                    let ref = XCLocalSwiftPackageReference(relativePath: relativePath)
-                    pbxproj.add(object: ref)
-                    var packages = rootProject.localPackages
-                    packages.append(ref)
-                    rootProject.localPackages = packages
-                    localRef = ref
+
+                let style = params.arguments?["local_style"]?.stringValue ?? "packageReference"
+                switch style {
+                case "packageReference":
+                    // Modern form: an XCLocalSwiftPackageReference in packageReferences.
+                    if let existing = rootProject.localPackages.first(where: { $0.relativePath == relativePath }) {
+                        localRef = existing
+                    } else {
+                        let ref = XCLocalSwiftPackageReference(relativePath: relativePath)
+                        pbxproj.add(object: ref)
+                        var packages = rootProject.localPackages
+                        packages.append(ref)
+                        rootProject.localPackages = packages
+                        localRef = ref
+                    }
+                case "folderReference":
+                    // Legacy form: a PBXFileReference (package wrapper) in the group tree,
+                    // with nothing in packageReferences. Matches projects that wire local
+                    // packages by dragging the folder in. The product dependency below is
+                    // identical to the packageReference form (productName-only).
+                    let existing = pbxproj.fileReferences.first {
+                        $0.path == relativePath && $0.lastKnownFileType == "wrapper"
+                    }
+                    if existing == nil {
+                        let fileRef = PBXFileReference(
+                            sourceTree: .group,
+                            name: Path(relativePath).lastComponent,
+                            lastKnownFileType: "wrapper",
+                            path: relativePath
+                        )
+                        pbxproj.add(object: fileRef)
+                        let group: PBXGroup
+                        if let groupPath = params.arguments?["group"]?.stringValue {
+                            group = try GroupHelpers.findOrCreateGroup(pbxproj: pbxproj, groupPath: groupPath, sourceRoot: projPath.parent())
+                        } else if let mainGroup = rootProject.mainGroup {
+                            group = mainGroup
+                        } else {
+                            return .init(content: [.text("No main group found to place the package folder reference.")], isError: true)
+                        }
+                        group.children.append(fileRef)
+                        fileRef.parent = group
+                    }
+                default:
+                    return .init(content: [.text("Unknown local_style '\(style)'. Use 'packageReference' or 'folderReference'.")], isError: true)
                 }
             }
         } catch let error as SwiftPackageHelpers.PkgError {
