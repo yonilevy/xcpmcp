@@ -19,6 +19,7 @@ enum RemoveSwiftPackageHandler {
         let targetName = params.arguments?["target"]?.stringValue
 
         let projPath = Path(projectPath)
+        let sourceRoot = projPath.parent()
         let xcodeproj = try XcodeProj(path: projPath)
         let pbxproj = xcodeproj.pbxproj
 
@@ -62,11 +63,40 @@ enum RemoveSwiftPackageHandler {
             }
         }
 
-        // Final predicate: belongs to this package and, if a product filter was given,
-        // is one of the named products.
+        // Decide which product names this removal unlinks. Remote packages scope via their
+        // package link, so an empty filter safely means "all of this package's products".
+        // Local product dependencies have NO link to their package, so an empty filter
+        // would match every local package's products — to avoid nuking unrelated local
+        // packages we resolve this package's own products from its manifest, or, failing
+        // that, only proceed when it's the project's single local package.
+        let matchAllProducts: Bool
+        let effectiveProducts: [String]
+
+        if remoteRef != nil || !productFilter.isEmpty {
+            effectiveProducts = productFilter
+            matchAllProducts = remoteRef != nil && productFilter.isEmpty
+        } else {
+            let relativePath = localPath!
+            let packagePath = (sourceRoot + relativePath).normalize()
+            if let manifestProducts = SwiftPackageHelpers.localPackageProductNames(packagePath: packagePath) {
+                effectiveProducts = manifestProducts
+                matchAllProducts = false
+            } else {
+                let localPackageCount = rootProject.localPackages.count
+                    + pbxproj.fileReferences.filter { $0.lastKnownFileType == "wrapper" }.count
+                if localPackageCount <= 1 {
+                    effectiveProducts = []
+                    matchAllProducts = true
+                } else {
+                    return .init(content: [.text("Can't determine which products belong to local package '\(relativePath)' (its manifest at '\(packagePath.string)' didn't resolve, and the project has multiple local packages — local product dependencies carry no link back to their package). Pass 'products' to choose what to unlink; use list_swift_packages to see linked products.")], isError: true)
+                }
+            }
+        }
+
+        // Final predicate: belongs to this package and is one of the products to unlink.
         func shouldRemove(_ dep: XCSwiftPackageProductDependency) -> Bool {
             guard matchesPackage(dep) else { return false }
-            return productFilter.isEmpty || productFilter.contains(dep.productName)
+            return matchAllProducts || effectiveProducts.contains(dep.productName)
         }
 
         let targets: [PBXNativeTarget]
@@ -140,6 +170,11 @@ enum RemoveSwiftPackageHandler {
         }
 
         try xcodeproj.write(path: projPath)
+
+        // XcodeProj can't delete XCLocalSwiftPackageReference objects (its delete() has no
+        // branch for them), so removing one leaves an orphaned object definition behind.
+        // Strip orphans from the written file (also cleans up any left by earlier runs).
+        SwiftPackageHelpers.stripOrphanedLocalPackageReferences(pbxprojPath: projPath + "project.pbxproj")
 
         var parts: [String] = []
         if !unlinked.isEmpty {
